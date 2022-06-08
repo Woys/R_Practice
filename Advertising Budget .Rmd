@@ -1,0 +1,187 @@
+---
+title: "Advertising Budget Project"
+output: word_document
+date: "4/16/2022"
+---
+
+```{r load up regclass, message=FALSE}
+library(regclass)
+library(ggplot2)
+```
+
+**************
+Data source: https://www.kaggle.com/datasets/yasserh/advertising-sales-dataset
+
+**1. Introduction: Description of the data that you selected:**
+
+We first importing CSV and look at the data
+
+```{r read d}
+d <- read.csv("data/Advertising Budget and Sales.csv")
+
+head(d,3)
+```
+Then, we look at the distribution of the variables
+
+```{r}
+
+summary(d)
+dim(d)
+
+```
+
+
+**************
+
+**Data Cleaning: Use R to remove all the missing values in the data set and use the complete data for the further steps.:**
+
+To clean the data. Let's look for for missing values.
+
+```{r}
+
+# creating empty data.frame for missing values
+missing_values = data.frame()
+# check for missing values
+for(i in 1:length(d)) {                      
+  missing_values[i,1] = is.null(d[i])
+}
+rownames(missing_values) <- c(names(d))
+colnames(missing_values) = "missing values"
+
+missing_values
+
+```
+
+Therefore, there are no missing values. Data is complete and ready for analysis.
+
+Then, I would like to change the columns names
+
+```{r}
+
+d$X = NULL
+names(d)[1] <- "TV.Ad.Budget"
+names(d)[2] <- "Radio.Ad.Budget"
+names(d)[3] <- "Newspaper.Ad.Budget"
+names(d)[4] <- "Sales"
+```
+**3. Association Analysis:**
+
+We want to predict variable "Sales" and we set it as "y". 
+```{r}
+names(d)[4] <- "y"
+head(d,2 )
+```
+```{r}
+all_correlations(d, interest = "y", sorted  = "magnitude")
+```
+We can see that variable "TV.Ad.Budget" describe the variable "y" the best. Let's examine association between them.
+
+```{r}
+plot(y~TV.Ad.Budget,data=d)
+```
+We can see that variance is increasing. We can see heteroscedasticity.
+Let's try log transformation. 
+
+```{r}
+associate(log(y)~TV.Ad.Budget,data=d)
+```
+
+The relationships is not linear but monotonic. Therefore, we use Spearman correlation
+
+r 0.8006144
+p-value 0 and 0.007 
+
+p-value is less then 0.05
+Therefore, log(y)~TV.Ad.Budget relationship statistically significant.
+
+Let's examine other associations.
+
+```{r}
+plot(y~Radio.Ad.Budget, data = d)
+```
+
+Let's use log transformation again. Since th variance is increasing; we see heteroscedasticity.
+
+```{r}
+associate(log10(y)~Radio.Ad.Budget,data=d)
+```
+The relationship is linear. Let's use Person.
+
+Pearson's r 0.4711507
+p-value 0 and 0.007 
+
+p-value is less than 0.05. 
+Therefore, log10(y)~Radio.Ad.Budget relationship statistically significant 
+
+```{r}
+associate(y~Newspaper.Ad.Budget,data=d)
+```
+ 
+The relationship looks like ellipse. Let's use Person.
+
+Pearson's r   0.2282990
+p-value 0 and 0.007 
+
+p-value is less than 0.05.
+Therefore, y~Newspaper relationship statistically significant 
+
+
+**4. Simple Linear Regression:**
+
+log(y)~log(TV.Ad.Budget)
+
+Let's use log transformation on both variables to build  simple Linear Regression.
+```{r}
+l12=lm(log(y)~log(TV.Ad.Budget) , data=d)
+summary(l12)
+```
+
+```{r}
+possible_regressions(l12)
+```
+The slope of our regression is steep. The SSE reduction is much larger than what happens “by chance”. 
+The regression is statistically significant.
+
+```{r}
+confint(l12, level =0.05)
+```
+
+Let's do the same with log(y) ~ Radio.Ad.Budget+1. We have to add +1 to Radio.Ad.Budget because it has values of "0" what prevent R from creating the linear regression model.
+```{r}
+l22=lm(log(y) ~ log(Radio.Ad.Budget+1),data=d)
+summary(l22)
+```
+
+```{r}
+possible_regressions(l22)
+```
+The slope of our regression is steep. The SSE reduction is much larger than what happens “by chance”. 
+The regression is statistically significant.
+
+
+```{r}
+confint(l22, level =0.05)
+```
+Let's compare the selected linear models 
+
+1) log(y)~log(TV.Ad.Budget)
+Residual standard error: 0.2109
+Multiple R-squared:  0.7421,	Adjusted R-squared:  0.7408 
+
+2) log(y)~TV.Ad.Budget
+Residual standard error: 0.2575 
+Multiple R-squared:  0.6156,	Adjusted R-squared:  0.6137 
+
+3) log10(y) ~ log(Radio.Ad.Budget+1)
+Residual standard error: 0.3687 on 198 degrees of freedom
+Multiple R-squared:  0.212,	Adjusted R-squared:  0.208 
+F-statistic: 53.28 on 1 and 198 DF,  p-value: 6.866e-12
+
+We also examened y~Newspaper~Ad.Budget relationship. However, the association would not be in the limit of 10 pages. 
+4) y~Newspaper.Ad.Budget
+Residual standard error: 5.092 
+Multiple R-squared:  0.05212,	Adjusted R-squared:  0.04733 
+
+Based on R square, and Residual standard error, the best linear regression that explain variable y (Sales) the best is  log(y)~log(TV.Ad.Budget) (1).
+
+
